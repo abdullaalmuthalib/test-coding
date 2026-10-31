@@ -1,78 +1,76 @@
-# ⚡ Brightloop — Subscription Management System
+# ⚡ Brightloop — Subscription Management Platform
 
-> A mobile-first subscription management and recurring billing OS built for **Brightloop Software**, strictly following the challenge requirements from Odoo and styled with the vibrant maker aesthetics of [TinkerHub.org](https://tinkerhub.org).
-
----
-
-
-## 🚀 Key Functional Capabilities
-
-### 1. Unified Authentication & 3 Role Portals
-- **Strict Password Rules**: Enforces `> 8 characters`, at least 1 uppercase letter, 1 lowercase letter, and 1 special character.
-- **Single Account per Email**: Validated with unique database constraints.
-- **Password Reset Simulation**: Interactive token generator and verification interface in the Admin Hub.
-- **Role-Based Access**:
-  - **Admin**: Full system control — manage products, Odoo variants, billing plans, tax rules, discount rules, and internal staff onboarding.
-  - **Internal Staff**: Daily quote-to-subscription pipeline, automated billing runs, invoice management, and payment reconciliation.
-  - **Customer Portal**: Isolated self-service view where customers see only their own subscriptions and invoices, pay balances, and pause/resume/renew eligible plans.
-
-### 2. Products, Odoo Brand Variants & Plans
-- **Catalog Management**: Software, Service, and Add-on items with sales and cost pricing.
-- **Odoo Brand Variant**: Pre-configured and fully editable variant that adds **+$560** to the base price as specified in the problem statement.
-- **Plan Policies**: Daily, Weekly, Monthly, and Yearly intervals with configurable policies:
-  - Auto-close on expiry date
-  - Early closure permissions
-  - Pausing and resuming
-  - Contract renewal permissions
-
-### 3. Quotation Templates to Active Subscriptions
-- Pre-packaged quotation templates (e.g., *High Growth SaaS Package*, *Starter Launch Bundle*).
-- Interactive line item builder with live calculation of subtotals, variant adjustments, tiered taxes, and applied discount rules.
-- Complete state lifecycle: `Draft` &rarr; `Quotation` &rarr; `Confirmed` &rarr; `Active` &rarr; `Closed`.
-
-### 4. Automated "Billing Day" Engine
-- **One-Click Batch Invoicing**: Scans all active and confirmed subscriptions eligible for billing.
-- **Idempotent Billing**: Tracks `next_billing_date` and `last_invoiced_date` to ensure no subscription is billed twice or skipped.
-- **Automatic Taxes & Discounts**: Calculates line-level taxes and applies active discount coupons automatically.
-- **Invoice Lifecycle**: `Draft` &rarr; `Confirmed` &rarr; `Paid` (with Cancel, Send Email Notice, and Print/Save PDF capabilities).
-
-### 5. Multi-Method Payment Recording
-- Record customer payments via **Credit Card / Stripe**, **Bank Wire Transfer**, **UPI**, or **Cash**.
-- Live invoice balance tracking: Automatically transitions invoices to `PAID` once the full balance is satisfied.
-- Dynamic overdue receivables radar for immediate chasing.
-
-### 6. Finance Lead Real-Time Analytics (<2s SLA)
-- Instant sub-second calculation (<15ms via local SQLite WAL mode):
-  - **MRR** (Monthly Recurring Revenue) & **ARR** (Annual Recurring Revenue)
-  - **Total Revenue Collected**
-  - **Overdue Invoices Radar**
-  - **Pipeline Conversion Breakdown**
+> A unified, standalone web platform built for **Brightloop Software** for the **Odoo Hackathon 2026**, adhering strictly to the problem statement and styled with the maker aesthetic of [TinkerHub.org](https://tinkerhub.org).
 
 ---
 
-## 🛠️ Architecture & Local-First Tech Stack
-- **Database**: Native SQLite (`node:sqlite` DatabaseSync) with WAL journal mode for zero-setup, lightning-fast local persistence.
-- **Backend**: Express REST API running on `http://localhost:5000` with JWT token verification and role middleware.
-- **Frontend**: React 18 + Vite + Tailwind CSS + Lucide Icons, served directly by the Express server.
-- **Git Version Control**: Multi-commit history following conventional commits.
+## 🎯 The Hard Parts — Solved & Tested
+
+### 1. 🛡️ Idempotent Billing Engine (“Nothing billed twice or skipped”)
+- The invoice generator scans all active/confirmed subscriptions due as of the target billing date.
+- It enforces strict idempotency by inspecting existing records for the same `(subscription_id, billing_period_start)`.
+- Re-running the billing run repeatedly returns `0 new invoices created` and reports the count of skipped cycles that were already billed.
+- Accurately computes billing intervals (`daily`, `weekly`, `monthly`, `yearly`), advances `next_billing_date`, and auto-closes subscriptions if `auto_close = 1` and the expiry date is reached.
+
+### 2. 👥 Multi-Role Access Control across 3 Portals
+- **Admin**: Full control over products, Odoo variants, plans, discount rules, tax policies, and is the **only role permitted to onboard internal staff**.
+- **Internal Staff**: Day-to-day operations — builds quotes, manages subscriptions, executes billing runs, records payments, and tracks overdue receivables.
+- **Customer Portal**: Dedicated self-service view where customers see **only their own** subscriptions and invoices, review quotes, record payments, and pause/resume/renew eligible plans.
+- Includes a 1-click **Persona Switcher** in the top navigation to test all roles.
+
+### 3. 🔄 The Three State Machines
+1. **Subscription State Machine**:
+   - `Draft` &rarr; `Quotation` &rarr; `Confirmed` &rarr; `Active` &rarr; `Closed`.
+   - Supports `Paused` &harr; `Active` and `Renew` (+1 year), strictly enforcing plan policy flags (`allow_pause`, `allow_close_early`, `allow_renew`).
+2. **Invoice State Machine**:
+   - `Draft` &rarr; `Confirmed` &rarr; `Paid` (with `Cancelled` and `Sent` email confirmation tracking).
+   - Partially or fully paid reconciliation automatically updates status to `Paid`.
+3. **Plan Policy Rules**:
+   - Configures interval, auto-close behavior, early closure allowances, pause allowances, and renewal permissions.
+
+### 4. 🏷️ Automatic Discount Rules Engine
+- Only the Admin can create discount rules (fixed amount or percentage, minimum spend/quantity, start/end dates, and maximum usage limits).
+- Target scope: applies to **whole subscriptions** or **specific products**.
+- When applied, automatically deducts from the next invoice without manual calculation, updates the `times_used` counter, and automatically ceases once exhausted or expired.
+
+### 5. ⚡ Performance & Reporting at Scale (< 2s SLA Rule)
+- Problem requirement: *"With thousands of subscriptions on the books, every page should still respond in under two seconds."*
+- Powered by a local SQLite engine running in **WAL mode** with compound indexes (`idx_subs_status_date`, `idx_invoices_sub_period`, etc.).
+- Includes a dedicated **Scale Benchmark Suite** that seeds 5,000 realistic subscriptions in **~260ms** and aggregates MRR, ARR, and financial metrics in **~760ms** (far exceeding the 2,000ms SLA).
+
+---
+
+## 🎨 TinkerHub.org Design System
+- **Maker Visual Ethos**: High-contrast neo-brutalist cards with crisp 2px dark borders (`border-2 border-zinc-900`), tactile press reactions (`neo-btn`), and elevated solid drop shadows (`shadow-[3px_3px_0px_#121316]`).
+- **Signature Palette**:
+  - 🟡 **Tinker Yellow** (`#F4C761`) — Primary interactive buttons and highlights.
+  - 🟢 **Maker Lime** (`#C3FF16`) — Tags, sticker badges, and benchmark status.
+  - 🟣 **Electric Purple** (`#5E1DB0` / `#884BD4`) — Operations chips and status indicators.
+  - 🌿 **Mint Green** (`#3CD377`) — Paid status and revenue figures.
+  - 🏛️ **Canvas Sand** (`#F8F7F4`) — Warm maker canvas with subtle dot grid.
 
 ---
 
 ## 🏃 Running the Application
 
-### 1. Start the Unified Server (Backend API + Mobile Frontend)
+### 1. Start the Web App Server
 ```bash
 node server/index.js
 ```
-Open **`http://localhost:5000`** in any mobile or desktop browser!
+The server serves both the Express REST API and the compiled React frontend at **`http://localhost:5000`**.
 
-### 2. Demo Credentials Pre-Loaded
+### 2. Run the Automated Verification Suite
+We have included an end-to-end Python test script verifying all 8 requirements:
+```bash
+python test_system.py
+```
+
+### 3. Pre-Loaded Test Accounts
 | Role | Email | Password |
 |---|---|---|
 | **Admin** | `admin@brightloop.com` | `Admin@1234` |
 | **Internal Staff** | `staff@brightloop.com` | `Staff@1234` |
 | **Customer** | `elena@novatech.co` | `Cust@1234` |
-| **Customer (TinkerLabs)** | `priya@tinkerlabs.org` | `Cust@1234` |
+| **Customer** | `priya@tinkerlabs.org` | `Cust@1234` |
 
-*(You can also switch personas in 1 click using the top right account dropdown!)*
-
+*(You can also switch personas instantly using the top right account dropdown!)*
