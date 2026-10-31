@@ -199,6 +199,12 @@ export function initDatabase() {
       FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT,
       FOREIGN KEY (recorded_by_user_id) REFERENCES users(id) ON DELETE SET NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_subs_status_date ON subscriptions(status, next_billing_date);
+    CREATE INDEX IF NOT EXISTS idx_subs_customer ON subscriptions(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_sub_period ON invoices(subscription_id, billing_period_start);
+    CREATE INDEX IF NOT EXISTS idx_invoices_status_due ON invoices(status, due_date);
+    CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
   `);
 
   // Seed default dataset if database is empty

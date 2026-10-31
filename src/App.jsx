@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar.jsx';
 import Header from './components/Header.jsx';
-import BottomNav from './components/BottomNav.jsx';
 import DashboardTab from './components/DashboardTab.jsx';
 import SubscriptionsTab from './components/SubscriptionsTab.jsx';
 import InvoicesTab from './components/InvoicesTab.jsx';
+import TemplatesTab from './components/TemplatesTab.jsx';
 import CatalogTab from './components/CatalogTab.jsx';
 import AdminHubTab from './components/AdminHubTab.jsx';
+import BenchmarkTab from './components/BenchmarkTab.jsx';
 import InvoiceModal from './components/InvoiceModal.jsx';
 import NewSubscriptionModal from './components/NewSubscriptionModal.jsx';
 import PaymentModal from './components/PaymentModal.jsx';
 import AuthModal from './components/AuthModal.jsx';
 import { api } from './api.js';
-import { Sparkles, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Sparkles, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isMobileFrame, setIsMobileFrame] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Core Data States
@@ -60,7 +61,6 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error during initial boot:', err);
-        // Fallback login
         await switchDemoUser('admin@brightloop.com');
       } finally {
         setIsLoading(false);
@@ -122,11 +122,11 @@ export default function App() {
     }
   };
 
-  // Run Billing Day Engine
-  const handleRunBillingDay = async () => {
+  // Run Billing Day Engine (with optional simulated date)
+  const handleRunBillingDay = async (targetDate) => {
     setIsBillingRunning(true);
     try {
-      const res = await api.runBillingDay();
+      const res = await api.runBillingDay(targetDate);
       showToast(`⚡ ${res.message}`);
       await refreshAllData();
       setActiveTab('invoices');
@@ -241,6 +241,17 @@ export default function App() {
     }
   };
 
+  // Create Quotation Template
+  const handleCreateTemplate = async (templateData) => {
+    try {
+      await api.createTemplate(templateData);
+      showToast('Quotation template created successfully!');
+      await refreshAllData();
+    } catch (err) {
+      showToast(err.message || 'Failed to create template', 'error');
+    }
+  };
+
   // Create Discount Rule
   const handleCreateDiscount = async (discountData) => {
     try {
@@ -278,10 +289,10 @@ export default function App() {
   const quotesCount = subscriptions.filter(s => ['draft', 'quotation'].includes(s.status)).length;
 
   return (
-    <div className={`min-h-screen bg-tinker-canvas flex flex-col ${isMobileFrame ? 'items-center justify-center py-6 px-2 bg-zinc-900' : ''}`}>
+    <div className="min-h-screen bg-tinker-canvas flex flex-row">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+        <div className="fixed top-5 right-5 z-50 animate-bounce">
           <div className={`px-4 py-2.5 rounded-2xl border-2 border-tinker-border shadow-neo flex items-center gap-2 text-xs font-black ${
             toast.type === 'error'
               ? 'bg-red-500 text-white'
@@ -293,23 +304,26 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Container / Mobile Device Wrapper */}
-      <div className={`w-full bg-tinker-canvas flex flex-col transition-all duration-300 relative ${
-        isMobileFrame
-          ? 'max-w-[420px] h-[860px] border-4 border-zinc-700 rounded-[44px] shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden'
-          : 'min-h-screen'
-      }`}>
-        {/* Mobile Speaker / Camera Notch if in Frame Mode */}
-        {isMobileFrame && (
-          <div className="w-full bg-zinc-800 h-6 flex items-center justify-center relative shrink-0">
-            <div className="w-20 h-3.5 bg-black rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-zinc-900 border border-zinc-700 mr-2"></div>
-              <div className="w-8 h-1 bg-zinc-800 rounded-full"></div>
-            </div>
-          </div>
-        )}
+      {/* Desktop Web App Sidebar */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        currentUser={currentUser}
+        onSwitchUser={switchDemoUser}
+        onLogout={() => {
+          api.setToken(null);
+          api.setUser(null);
+          setCurrentUser(null);
+          setAuthModalConfig({ isOpen: true, mode: 'login' });
+        }}
+        onOpenAuth={(mode) => setAuthModalConfig({ isOpen: true, mode })}
+        overdueCount={overdueCount}
+        quotesCount={quotesCount}
+        analytics={analytics}
+      />
 
-        {/* Global Header */}
+      {/* Main App Layout */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         <Header
           currentUser={currentUser}
           onSwitchUser={switchDemoUser}
@@ -320,17 +334,16 @@ export default function App() {
             setAuthModalConfig({ isOpen: true, mode: 'login' });
           }}
           onOpenAuth={(mode) => setAuthModalConfig({ isOpen: true, mode })}
-          isMobileFrame={isMobileFrame}
-          setIsMobileFrame={setIsMobileFrame}
+          onRunBillingDay={handleRunBillingDay}
+          isBillingRunning={isBillingRunning}
           analytics={analytics}
         />
 
-        {/* Scrollable Viewport Content */}
-        <main className="flex-1 overflow-y-auto px-3.5 sm:px-6 pt-4 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-2">
+            <div className="flex flex-col items-center justify-center h-64 gap-3">
               <div className="w-10 h-10 border-4 border-tinker-yellow border-t-black rounded-full animate-spin"></div>
-              <p className="text-xs font-bold text-zinc-500">Connecting to Brightloop Engine...</p>
+              <p className="text-xs font-bold text-zinc-500">Connecting to Brightloop SQLite Engine...</p>
             </div>
           ) : (
             <>
@@ -340,7 +353,7 @@ export default function App() {
                   invoices={invoices}
                   subscriptions={subscriptions}
                   currentUser={currentUser}
-                  onRunBillingDay={handleRunBillingDay}
+                  onRunBillingDay={() => handleRunBillingDay()}
                   onOpenInvoice={handleOpenInvoice}
                   onOpenPayment={(inv) => setPaymentInvoice(inv)}
                   onOpenNewSub={() => setShowNewSubModal(true)}
@@ -370,6 +383,19 @@ export default function App() {
                 />
               )}
 
+              {activeTab === 'templates' && (
+                <TemplatesTab
+                  templates={templates}
+                  products={products}
+                  plans={plans}
+                  currentUser={currentUser}
+                  onCreateTemplate={handleCreateTemplate}
+                  onApplyTemplateToQuote={(tpl) => {
+                    setShowNewSubModal(true);
+                  }}
+                />
+              )}
+
               {activeTab === 'catalog' && (
                 <CatalogTab
                   products={products}
@@ -377,6 +403,19 @@ export default function App() {
                   currentUser={currentUser}
                   onCreateProduct={handleCreateProduct}
                   onCreatePlan={handleCreatePlan}
+                />
+              )}
+
+              {activeTab === 'discounts' && (
+                <AdminHubTab
+                  currentUser={currentUser}
+                  discounts={discounts}
+                  taxes={taxes}
+                  users={users}
+                  products={products}
+                  onCreateDiscount={handleCreateDiscount}
+                  onCreateTax={handleCreateTax}
+                  onCreateStaff={handleCreateStaff}
                 />
               )}
 
@@ -392,18 +431,17 @@ export default function App() {
                   onCreateStaff={handleCreateStaff}
                 />
               )}
+
+              {activeTab === 'benchmark' && (
+                <BenchmarkTab
+                  analytics={analytics}
+                  subscriptions={subscriptions}
+                  onRefreshAll={refreshAllData}
+                />
+              )}
             </>
           )}
         </main>
-
-        {/* Global Bottom Navigation Bar */}
-        <BottomNav
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          userRole={currentUser?.role || 'customer'}
-          overdueCount={overdueCount}
-          quotesCount={quotesCount}
-        />
       </div>
 
       {/* MODALS */}

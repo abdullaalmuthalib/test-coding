@@ -189,9 +189,17 @@ export const api = {
   },
 
   // Billing & Invoices
-  async runBillingDay() {
+  async runBillingDay(target_date) {
     return this.request('/billing/run-billing-day', {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ target_date })
+    });
+  },
+
+  async seedScale(count = 5000) {
+    return this.request('/benchmark/seed-scale', {
+      method: 'POST',
+      body: JSON.stringify({ count })
     });
   },
 

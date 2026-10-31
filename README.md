@@ -4,22 +4,6 @@
 
 ---
 
-## 🎨 TinkerHub Design Aesthetics
-- **Neo-Brutalist Maker Styling**: Distinctive 2px solid dark borders (`border-2 border-zinc-900`), elevated neo-brutal drop shadows (`shadow-[3px_3px_0px_#121316]`), and responsive tactile button presses.
-- **TinkerHub Color Tokens**:
-  - 🟡 **Tinker Yellow** (`#F4C761`): Primary brand hero and interactive accents.
-  - 🟢 **Maker Lime** (`#C3FF16`): Accent badges and sticker highlights.
-  - 🟣 **Electric Purple** (`#5E1DB0` / `#884BD4`): Status tags, SLA chips, and operations indicators.
-  - 🌿 **Mint Green** (`#3CD377`): Positive revenue indicators and active states.
-  - 🔵 **Electric Blue** (`#479CFF`): Pipeline quotas and draft states.
-  - 🏛️ **Canvas Warm Sand** (`#F8F7F4`): Tinker maker canvas background with subtle dot matrix texture.
-- **Mobile-First UX**:
-  - Sticky header with 1-click role persona switcher (`Admin`, `Staff`, `Customer`).
-  - Mobile bottom navigation bar with live badge counts (quotes and overdue invoices).
-  - Built-in simulator toggle to switch between a realistic mobile device shell and responsive desktop view.
-  - Touch-friendly tap targets, modal bottom sheets, and printable invoice sheets.
-
----
 
 ## 🚀 Key Functional Capabilities
 
@@ -91,3 +75,4 @@ Open **`http://localhost:5000`** in any mobile or desktop browser!
 | **Customer (TinkerLabs)** | `priya@tinkerlabs.org` | `Cust@1234` |
 
 *(You can also switch personas in 1 click using the top right account dropdown!)*
+
