@@ -1,17 +1,26 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DB_PATH = path.join(__dirname, 'brightloop.db');
+
+// On Vercel, the root filesystem is read-only; use /tmp for SQLite writes
+const DB_PATH = process.env.VERCEL
+  ? path.join('/tmp', 'brightloop.db')
+  : path.join(__dirname, 'brightloop.db');
 
 export const db = new DatabaseSync(DB_PATH);
 
 // Enable WAL for high concurrency & speed
-db.exec('PRAGMA journal_mode = WAL;');
-db.exec('PRAGMA foreign_keys = ON;');
+try {
+  db.exec('PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA foreign_keys = ON;');
+} catch (e) {
+  // In some environments journal_mode = WAL may default to delete
+}
 
 export function initDatabase() {
   db.exec(`
@@ -190,7 +199,7 @@ export function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       invoice_id INTEGER NOT NULL,
       payment_number TEXT UNIQUE NOT NULL,
-      method TEXT NOT NULL, -- 'Credit Card', 'Bank Transfer', 'UPI', 'Stripe', 'Cash'
+      method TEXT NOT NULL,
       amount REAL NOT NULL,
       payment_date TEXT NOT NULL,
       note TEXT,
@@ -207,7 +216,6 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
   `);
 
-  // Seed default dataset if database is empty
   seedDatabase();
 }
 
@@ -252,7 +260,7 @@ function seedDatabase() {
   // Variants (Explicitly addressing Odoo Brand adds 560 from the prompt)
   const insertVariant = db.prepare('INSERT INTO product_variants (product_id, variant_name, price_adjustment) VALUES (?, ?, ?)');
   const v1 = insertVariant.run(p1, 'Standard Community Edition', 0).lastInsertRowid;
-  const v2 = insertVariant.run(p1, 'Odoo Brand Edition', 560.0).lastInsertRowid; // Prompt requirement: Odoo brand adds 560
+  const v2 = insertVariant.run(p1, 'Odoo Brand Edition', 560.0).lastInsertRowid;
   const v3 = insertVariant.run(p1, 'Enterprise Multi-Branch', 1200.0).lastInsertRowid;
 
   insertVariant.run(p2, 'Standard 4-Core / 16GB', 0);
@@ -288,7 +296,7 @@ function seedDatabase() {
     INSERT INTO quotation_template_lines (template_id, product_id, variant_id, quantity, unit_price, tax_rate)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
-  insertTemplateLine.run(t1, p1, v2, 2, 1760.0, 18.0); // 1200 + 560
+  insertTemplateLine.run(t1, p1, v2, 2, 1760.0, 18.0);
   insertTemplateLine.run(t1, p2, 4, 1, 250.0, 18.0);
   insertTemplateLine.run(t2, p1, v1, 1, 1200.0, 18.0);
 
@@ -324,10 +332,10 @@ function seedDatabase() {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const inv1 = insertInvoice.run('INV-2026-001', s1, 3, '2026-10-01', '2026-10-16', 1910.0, 280.44, 352.0, 1838.44, 1838.44, 'paid', '2026-10-01', '2026-10-31', '2026-10-01 10:00:00').lastInsertRowid;
-  const inv2 = insertInvoice.run('INV-2026-002', s2, 4, '2026-09-15', '2026-10-15', 5250.0, 945.0, 0.0, 6195.0, 6195.0, 'paid', '2026-09-15', '2027-09-14', '2026-09-15 11:30:00').lastInsertRowid;
-  const inv3 = insertInvoice.run('INV-2026-003', s1, 3, '2026-10-25', '2026-11-09', 1910.0, 280.44, 352.0, 1838.44, 0.0, 'confirmed', '2026-11-01', '2026-11-30', '2026-10-25 09:00:00').lastInsertRowid;
-  const inv4 = insertInvoice.run('INV-2026-004', s4, 3, '2026-10-20', '2026-10-25', 250.0, 45.0, 0.0, 295.0, 0.0, 'confirmed', '2026-10-20', '2026-10-27', null).lastInsertRowid;
+  const inv1 = insertInvoice.run('INV-2026-0001', s1, 3, '2026-10-01', '2026-10-16', 1910.0, 280.44, 352.0, 1838.44, 1838.44, 'paid', '2026-10-01', '2026-10-31', '2026-10-01 10:00:00').lastInsertRowid;
+  const inv2 = insertInvoice.run('INV-2026-0002', s2, 4, '2026-09-15', '2026-10-15', 5250.0, 945.0, 0.0, 6195.0, 6195.0, 'paid', '2026-09-15', '2027-09-14', '2026-09-15 11:30:00').lastInsertRowid;
+  const inv3 = insertInvoice.run('INV-2026-0003', s1, 3, '2026-10-25', '2026-11-09', 1910.0, 280.44, 352.0, 1838.44, 0.0, 'confirmed', '2026-11-01', '2026-11-30', '2026-10-25 09:00:00').lastInsertRowid;
+  const inv4 = insertInvoice.run('INV-2026-0004', s4, 3, '2026-10-20', '2026-10-25', 250.0, 45.0, 0.0, 295.0, 0.0, 'confirmed', '2026-10-20', '2026-10-27', null).lastInsertRowid;
 
   // Invoice Lines
   const insertInvLine = db.prepare(`
@@ -352,8 +360,8 @@ function seedDatabase() {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  insertPayment.run(inv1, 'PAY-2026-001', 'Credit Card', 1838.44, '2026-10-02', 'Paid via Stripe online portal', 3);
-  insertPayment.run(inv2, 'PAY-2026-002', 'Bank Transfer', 6195.0, '2026-09-18', 'Wire transfer ref #WT-882910', 1);
+  insertPayment.run(inv1, 'PAY-2026-0001', 'Credit Card', 1838.44, '2026-10-02', 'Paid via Stripe online portal', 3);
+  insertPayment.run(inv2, 'PAY-2026-0002', 'Bank Transfer', 6195.0, '2026-09-18', 'Wire transfer ref #WT-882910', 1);
 
   console.log('✅ SQLite database initialized with rich Brightloop seed data!');
 }
