@@ -215,3 +215,4 @@ export default function BenchmarkTab({ analytics, subscriptions, onRefreshAll })
     </div>
   );
 }
+
