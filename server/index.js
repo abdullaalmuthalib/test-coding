@@ -2,7 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import { db, initDatabase } from './db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIST_DIR = path.join(__dirname, '..', 'dist');
 
 initDatabase();
 
@@ -1000,6 +1007,15 @@ app.get('/api/analytics', authenticateToken, requireRole('admin', 'staff'), (req
     }
   });
 });
+
+// Serve frontend static build if exists
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(DIST_DIR, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Brightloop Backend Engine running on http://localhost:${PORT}`);
